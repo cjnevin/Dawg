@@ -24,22 +24,35 @@ class DawgNode: CustomStringConvertible, Hashable {
     
     init() {
         self.id = self.dynamicType.nextId
-        self.edges = Edges()
         self.dynamicType.nextId += 1
-        self.updateDescription()
+        updateDescription()
     }
     
-    init(withArray serialized: NSArray) {
-        id = serialized.firstObject! as! Int
-        final = serialized.objectAtIndex(1) as! Int == 1
-        if serialized.count == 2 {
-            if let serializedEdges = serialized.objectAtIndex(2) as? [String: NSArray] {
-                for (letter, array) in serializedEdges {
-                    edges[Character(letter)] = DawgNode(withArray: array)
+    private init(withId id: Int, final: Bool, edges: Edges?) {
+        self.id = id
+        self.final = final
+        if edges?.count > 0 { self.edges = edges! }
+        updateDescription()
+    }
+    
+    class func deserialize(serialized: NSArray, inout cached: [Int: DawgNode]) -> DawgNode {
+        let id = serialized.firstObject! as! Int
+        guard let cache = cached[id] else {
+            var edges: Edges?
+            if serialized.count == 3 {
+                edges = Edges()
+                if let serializedEdges = serialized.objectAtIndex(2) as? [String: NSArray] {
+                    for (letter, array) in serializedEdges {
+                        edges?[Character(letter)] = DawgNode.deserialize(array, cached: &cached)
+                    }
                 }
             }
+            let final = serialized.objectAtIndex(1) as! Int == 1
+            let node = DawgNode(withId: id, final: final, edges: edges)
+            cached[id] = node
+            return node
         }
-        updateDescription()
+        return cache
     }
     
     func serialize() -> NSArray {
@@ -115,7 +128,8 @@ class Dawg {
             if let data = NSData(contentsOfFile: path),
                 contents = try NSJSONSerialization.JSONObjectWithData(data,
                     options: NSJSONReadingOptions.AllowFragments) as? NSArray {
-                        return Dawg(withRootNode: DawgNode(withArray: contents))
+                        var cache = [Int: DawgNode]()
+                        return Dawg(withRootNode: DawgNode.deserialize(contents, cached: &cache))
             }
         } catch { }
         return nil
@@ -176,5 +190,49 @@ class Dawg {
             node = edgeNode
         }
         return node.final
+    }
+    
+    
+    func anagramsOf(letters: [Character],
+        length: Int,
+        prefix: [Character],
+        fixedLetters: [(Int, Character)],
+        fixedCount: Int,
+        root: DawgNode,
+        inout results: [String])
+    {
+        let source = root ?? rootNode
+        let prefixLength = prefix.count
+        if let c = fixedLetters.filter({$0.0 == prefixLength}).map({$0.1}).first,
+            newSource = source.edges[c] {
+                var newPrefix = prefix
+                newPrefix.append(c)
+                //let newPrefix = prefix + String(c)
+                let reverseFiltered = fixedLetters.filter({$0.0 != prefixLength})
+                anagramsOf(letters, length: length, prefix: newPrefix,
+                    fixedLetters: reverseFiltered, fixedCount: fixedCount,
+                    root: newSource, results: &results)
+                return
+        }
+        
+        // See if word exists
+        if source.final && fixedLetters.count == 0 &&
+            prefixLength == length &&
+            prefixLength > fixedCount {
+                results.append(String(prefix))
+        }
+        
+        source.edges.forEach { (letter, node) in
+            // Search for ? or letter
+            if let index = letters.indexOf(letter) ?? letters.indexOf("?") {
+                var newPrefix = prefix
+                var newLetters = letters
+                newPrefix.append(letter)
+                newLetters.removeAtIndex(index)
+                anagramsOf(newLetters, length: length, prefix: newPrefix,
+                    fixedLetters: fixedLetters, fixedCount: fixedCount,
+                    root: node, results: &results)
+            }
+        }
     }
 }
