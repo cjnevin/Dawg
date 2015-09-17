@@ -26,16 +26,21 @@ struct DawgNode: CustomStringConvertible, Hashable {
         self.id = self.dynamicType.nextId
         self.edges = Edges()
         self.dynamicType.nextId += 1
+        updateDescription()
     }
     
-    mutating func setEdge(letter: Character, node: DawgNode) {
-        edges[letter] = node
+    mutating func updateDescription() {
         var arr = [final ? "1" : "0"]
         edges.forEach({ (letter, node) in
             arr.append("\(letter)")
             arr.append("\(node.id)")
         })
         descr = arr.joinWithSeparator("_")
+    }
+    
+    mutating func setEdge(letter: Character, node: DawgNode) {
+        edges[letter] = node
+        updateDescription()
     }
     
     var description: String {
