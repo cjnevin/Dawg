@@ -1,4 +1,7 @@
 # Dawg
+
+![](https://reposs.herokuapp.com/?path=ChrisAU/Dawg)
+
 Directed acyclic word graph in Swift
 
 Usage:
