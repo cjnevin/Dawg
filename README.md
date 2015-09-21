@@ -15,4 +15,4 @@ assert(dawg.lookup("plane"))
 
 ```
 
-I investigated various different approaches to doing this and in the end decided to port/adapt code from https://github.com/baltavay/dawg.
+I investigated various different approaches to doing this and in the end decided to port/adapt code from https://github.com/baltavay/dawg and write some of my own, such as the 'anagramsOf' method.
