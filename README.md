@@ -12,7 +12,7 @@ dawg.insert("plane")
 assert(dawg.lookup("plane"))
 
 var results = [String]()
-dawg.anagramsOf("pagrormmer", length: 9, results: &results)
+dawg.anagramsOf("pagrormmer", length: 10, results: &results)
 assert(results.contains("programmer"))
 
 ```
