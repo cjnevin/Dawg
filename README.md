@@ -1,7 +1,5 @@
 # Dawg
 
-![](https://reposs.herokuapp.com/?path=ChrisAU/Dawg)
-
 Directed acyclic word graph in Swift
 
 Usage:
@@ -12,6 +10,10 @@ dawg.insert("car")
 dawg.insert("plane")
 
 assert(dawg.lookup("plane"))
+
+var results = [String]()
+dawg.anagramsOf("pgrormmer", length: 9, results: &results)
+assert(results.contains("programmer"))
 
 ```
 
