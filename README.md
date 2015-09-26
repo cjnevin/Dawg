@@ -11,8 +11,7 @@ assert(dawg.create("~/input.txt", outputPath: "~/output.bin"))
 // Load a binary file into a Dawg object.
 assert(Dawg.load("~/output.bin") != nil)
 
-// Once you've loaded a file, you will not be able to insert.
-
+// Create a Dawg object manually, note items need to be inserted alpabetically.
 let dawg = Dawg()
 dawg.insert("car")
 dawg.insert("plane")
