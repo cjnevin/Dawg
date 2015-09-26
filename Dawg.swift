@@ -8,93 +8,111 @@
 
 import Foundation
 
-public func == (lhs: DawgNode, rhs: DawgNode) -> Bool {
+import Foundation
+
+class DataBuffer {
+    let data: NSData
+    var offset: Int = 0
+    init(_ data: NSData) {
+        self.data = data
+    }
+    func getUInt8() -> UInt8 {
+        var value: UInt8 = 0
+        data.getBytes(&value, range: NSMakeRange(offset, 1))
+        offset += 1
+        return value
+    }
+    func getUInt32() -> UInt32 {
+        var value: UInt32 = 0
+        data.getBytes(&value, range: NSMakeRange(offset, 4))
+        offset += 4
+        return value
+    }
+}
+
+typealias DawgLetter = UInt8
+
+func == (lhs: DawgNode, rhs: DawgNode) -> Bool {
     return lhs.description == rhs.description
 }
 
-public class DawgNode: CustomStringConvertible, Hashable {
-    private static var nextId = 0
+class DawgNode: CustomStringConvertible, Hashable {
+    typealias Edges = [DawgLetter: DawgNode]
     
-    typealias Edges = [Character: DawgNode]
-    
-    private lazy var edges = Edges()
-    internal var final: Bool = false
-    internal var id: Int
+    static var nextId: UInt32 = 0
+    lazy var edges = Edges()
     var descr: String = ""
+    var final: Bool = false
+    var id: UInt32
     
-    internal init() {
+    init() {
         self.id = self.dynamicType.nextId
         self.dynamicType.nextId += 1
         updateDescription()
     }
     
-    private init(withId id: Int, final: Bool, edges: Edges?) {
+    init(withId id: UInt32, final: Bool) {
         self.dynamicType.nextId = max(self.dynamicType.nextId, id)
         self.id = id
         self.final = final
-        if edges?.count > 0 { self.edges = edges! }
     }
     
-    internal class func deserialize(serialized: NSArray, inout cached: [Int: DawgNode]) -> DawgNode {
-        let id = serialized.firstObject! as! Int
-        guard let cache = cached[id] else {
-            var edges = Edges()
-            if serialized.count == 3 {
-                edges = Edges()
-                if let serializedEdges = serialized.objectAtIndex(2) as? [String: NSArray] {
-                    for (letter, array) in serializedEdges {
-                        edges[Character(letter)] = DawgNode.deserialize(array, cached: &cached)
-                    }
-                }
-            }
-            let final = serialized.objectAtIndex(1) as! Int == 1
-            let node = DawgNode(withId: id, final: final, edges: edges)
+    class func deserialize(data: DataBuffer, inout cached: [UInt32: DawgNode]) -> DawgNode {
+        let final = data.getUInt8() == 1
+        let id = data.getUInt32()
+        let count = data.getUInt32()
+        var node: DawgNode
+        if let cache = cached[id] {
+            node = cache
+        } else {
+            node = DawgNode(withId: id, final: final)
             cached[id] = node
-            return node
         }
-        return cache
+        for _ in 0..<count {
+            node.edges[data.getUInt8()] = deserialize(data, cached: &cached)
+        }
+        return node
     }
     
-    internal func serialize() -> NSArray {
-        let serialized = NSMutableArray()
-        serialized.addObject(id)
-        serialized.addObject(final ? 1 : 0)
-        let serializedEdges = NSMutableDictionary()
-        for (letter, node) in edges {
-            serializedEdges[String(letter)] = node.serialize()
+    func serialize() -> NSData {
+        let data = NSMutableData()
+        var finalByte: UInt8 = final ? 1 : 0
+        data.appendBytes(&finalByte, length: 1)
+        data.appendBytes(&id, length: 4)
+        var count = edges.count
+        data.appendBytes(&count, length: 4)
+        for (var letter, node) in edges {
+            data.appendBytes(&letter, length: 1)
+            data.appendData(node.serialize())
         }
-        if serializedEdges.count > 0 {
-            serialized.addObject(serializedEdges)
-        }
-        return serialized
+        return data
     }
     
-    private func updateDescription() {
+    func updateDescription() {
         var arr = [final ? "1" : "0"]
         arr.appendContentsOf(edges.map({ "\($0.0)_\($0.1.id)" }))
         descr = arr.joinWithSeparator("_")
     }
     
-    internal func setEdge(letter: Character, node: DawgNode) {
+    func setEdge(letter: DawgLetter, node: DawgNode) {
         edges[letter] = node
         updateDescription()
     }
     
-    public var description: String {
+    var description: String {
         return descr
     }
     
-    public var hashValue: Int {
+    var hashValue: Int {
         return self.description.hashValue
     }
 }
 
 public class Dawg {
+    private var finalized: Bool = false
     private let rootNode: DawgNode
-    private var previousWord: String = ""
-    private var previousChars: [Character] = []
-    
-    private lazy var uncheckedNodes = [(parent: DawgNode, letter: Character, child: DawgNode)]()
+    private var previousChars: [UInt8] = []
+    private lazy var uncheckedNodes = [(parent: DawgNode, letter: DawgLetter, child: DawgNode)]()
     private lazy var minimizedNodes = [DawgNode: DawgNode]()
     
     /// Initialize a new instance.
@@ -104,47 +122,64 @@ public class Dawg {
     
     /// Initialize with an existing root node, carrying over all hierarchy information.
     /// - parameter rootNode: Node to use.
-    internal init(withRootNode rootNode: DawgNode) {
+    private init(withRootNode rootNode: DawgNode) {
         self.rootNode = rootNode
+        finalized = true
+    }
+    
+    /// Attempt to create a Dawg structure from a file.
+    /// - parameter inputPath: Path to load wordlist from.
+    /// - parameter outputPath: Path to write binary Dawg file to.
+    public class func create(inputPath: String, outputPath: String) -> Bool {
+        do {
+            let data = try String(contentsOfFile: inputPath, encoding: NSUTF8StringEncoding)
+            let dawg = Dawg()
+            let characters = Array(data.utf8)
+            let newLine = "\n".utf8.first!
+            var buffer = [UInt8]()
+            var i = 0
+            repeat {
+                var char = characters[i]
+                while char != newLine
+                {
+                    buffer.append(char)
+                    i++
+                    if i >= characters.count { break }
+                    char = characters[i]
+                }
+                dawg.insert(buffer)
+                buffer.removeAll()
+                i++
+            } while i != characters.count
+            dawg.minimize(0)
+            dawg.save(outputPath)
+            return true
+        } catch {
+            return false
+        }
     }
     
     /// Attempt to save structure to file.
     /// - parameter path: Path to write to.
-    public func save(path: String) -> Bool {
-        minimize(0)
-        do {
-            let data = try NSJSONSerialization.dataWithJSONObject(rootNode.serialize(), options: NSJSONWritingOptions.init(rawValue: 0))
-            data.writeToFile(path, atomically: true)
-            return true
-        }
-        catch {
-            return false
-        }
+    private func save(path: String) -> Bool {
+        let serialized = rootNode.serialize()
+        serialized.writeToFile(path, atomically: true)
+        return true
     }
     
     /// Attempt to load structure from file.
     /// - parameter path: Path of file to read.
     /// - returns: New Dawg with initialized rootNode or nil.
     public class func load(path: String) -> Dawg? {
-        guard let stream = NSInputStream(fileAtPath: path) else { return nil }
-        defer {
-            stream.close()
-        }
-        stream.open()
-        do {
-            guard let contents = try NSJSONSerialization.JSONObjectWithStream(stream,
-                options: NSJSONReadingOptions.AllowFragments) as? NSArray else { return nil }
-            var cache = [Int: DawgNode]()
-            return Dawg(withRootNode: DawgNode.deserialize(contents, cached: &cache))
-        } catch {
-            return nil
-        }
+        guard let data = NSData(contentsOfFile: path) else { return nil }
+        var cache = [UInt32: DawgNode]()
+        return Dawg(withRootNode: DawgNode.deserialize(DataBuffer(data), cached: &cache))
     }
     
     /// Replace redundant nodes in uncheckedNodes with ones existing in minimizedNodes
     /// then truncate.
     /// - parameter downTo: Iterate from count to this number (truncates these items).
-    public func minimize(downTo: Int) {
+    private func minimize(downTo: Int) {
         for i in (downTo..<uncheckedNodes.count).reverse() {
             let (parent, letter, child) = uncheckedNodes[i]
             if let node = minimizedNodes[child] {
@@ -157,12 +192,9 @@ public class Dawg {
     }
     
     /// Insert a word into the graph, words must be inserted in order.
-    /// - parameter word: Word to insert.
-    public func insert(word: String) {
-        assert(previousWord == "" || (previousWord != "" && previousWord < word))
-        
-        // Find common prefix for word and previous word.
-        let chars = Array(word.characters)
+    /// - parameter chars: UInt8 array.
+    private func insert(chars: [UInt8]) -> Bool {
+        if finalized { return false }
         var commonPrefix = 0
         for i in 0..<min(chars.count, previousChars.count) {
             if chars[i] != previousChars[i] { break }
@@ -188,97 +220,25 @@ public class Dawg {
             node = nextNode
         }
         
-        previousWord = word
         previousChars = chars
         node.final = true
+        return true
+    }
+    
+    /// Insert a word into the graph, words must be inserted in order.
+    /// - parameter word: Word to insert.
+    public func insert(word: String) -> Bool {
+        return insert(Array(word.utf8))
     }
     
     /// - parameter word: Word to check.
     /// - returns: True if the word exists.
     public func lookup(word: String) -> Bool {
         var node = rootNode
-        for letter in word.lowercaseString.characters {
+        for letter in word.lowercaseString.utf8 {
             guard let edgeNode = node.edges[letter] else { return false }
             node = edgeNode
         }
         return node.final
-    }
-    
-    /// Calculates all possible words given a set of rack letters
-    /// optionally providing fixed letters which can be used
-    /// to indicate that these positions are already filled.
-    /// - parameters:
-    ///     - letters: Letter in rack to use.
-    ///     - length: Length of word to return.
-    ///     - prefix: (Optional) Letters of current result already realised.
-    ///     - fixedLetters: (Optional) Letters that are already filled at given positions.
-    ///     - fixedCount: (Ignore) Number of fixed letters, recalculated by method.
-    ///     - root: Node in the Dawg tree we are currently using.
-    ///     - blankLetter: (Optional) Letter to use instead of ?.
-    /// - returns: Array of possible words.
-    public func anagramsOf(letters: [Character],
-        length: Int,
-        prefix: [Character]? = nil,
-        filledLetters: [Int: Character]? = nil,
-        filledCount: Int? = nil,
-        root: DawgNode? = nil,
-        blankLetter: Character = "?",
-        inout results: [String])
-    {
-        // Realise any fields that are empty on first run.
-        let _prefix = prefix ?? [Character]()
-        let _prefixLength = _prefix.count
-        var _filled = filledLetters ?? [Int: Character]()
-        let _numFilled = filledCount ?? _filled.count
-        let _source = root ?? rootNode
-        
-        // See if position exists in filled array.
-        if let letter = _filled[_prefixLength],
-            newSource = _source.edges[letter]
-        {
-            // Add letter to prefix
-            var newPrefix = _prefix
-            newPrefix.append(letter)
-            _filled.removeValueForKey(_prefixLength)
-            // Recurse with new prefix/letters
-            anagramsOf(letters,
-                length: length,
-                prefix: newPrefix,
-                filledLetters: _filled,
-                filledCount: _numFilled,
-                root: newSource,
-                results: &results)
-            return
-        }
-        
-        // Check if the current prefix is actually a word.
-        if _source.final &&
-            _filled.count == 0 &&
-            _prefixLength == length &&
-            _prefixLength > _numFilled
-        {
-            results.append(String(_prefix))
-        }
-        
-        // Check each edge of this node to see if any of the letters
-        // exist in our rack letters (or we have a '?').
-        _source.edges.forEach { (letter, node) in
-            if let index = letters.indexOf(letter) ?? letters.indexOf(blankLetter) {
-                // Copy letters, removing this letter
-                var newLetters = letters
-                newLetters.removeAtIndex(index)
-                // Add letter to prefix
-                var newPrefix = _prefix
-                newPrefix.append(letter)
-                // Recurse with new prefix/letters
-                anagramsOf(newLetters,
-                    length: length,
-                    prefix: newPrefix,
-                    filledLetters: _filled,
-                    filledCount: _numFilled,
-                    root: node,
-                    results: &results)
-            }
-        }
     }
 }
