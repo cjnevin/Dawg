@@ -8,8 +8,6 @@
 
 import Foundation
 
-import Foundation
-
 class DataBuffer {
     let data: NSData
     var offset: Int = 0
@@ -240,5 +238,105 @@ public class Dawg {
             node = edgeNode
         }
         return node.final
+    }
+    
+    /// Calculates all possible words given a set of rack letters
+    /// optionally providing fixed letters which can be used
+    /// to indicate that these positions are already filled.
+    /// - parameters:
+    ///     - letters: Letter in rack to use.
+    ///     - wordLength: Length of word to return.
+    ///     - prefix: (Optional) Letters of current result already realised.
+    ///     - filled: (Optional) Letters that are already filled at given positions.
+    ///     - filledCount: (Ignore) Number of fixed letters, recalculated by method.
+    ///     - source: (Optional) Node in the Dawg tree we are currently using.
+    ///     - blankLetter: (Optional) Letter to use instead of ?.
+    ///     - results: Array of possible words.
+    private func recursiveAnagrams(
+        withLetters letters: [DawgLetter],
+        wordLength: Int,
+        prefix: [DawgLetter],
+        filled: [Int: DawgLetter],
+        filledCount: Int,
+        source: DawgNode,
+        blankLetter: DawgLetter = "?".utf8.first!,
+        inout results: [String])
+    {
+        // See if position exists in filled array.
+        if let letter = filled[prefix.count],
+            newSource = source.edges[letter]
+        {
+            // Add letter to prefix
+            var newFilled = filled
+            var newPrefix = prefix
+            newPrefix.append(letter)
+            newFilled.removeValueForKey(prefix.count)
+            // Recurse with new prefix/letters
+            recursiveAnagrams(withLetters: letters,
+                wordLength: wordLength, prefix: newPrefix,
+                filled: newFilled, filledCount: filledCount,
+                source: newSource, blankLetter: blankLetter,
+                results: &results)
+            return
+        }
+        
+        // Check if the current prefix is actually a word.
+        if source.final &&
+            filled.count == 0 &&
+            prefix.count == wordLength &&
+            prefix.count > filledCount
+        {
+            var bytes = prefix
+            if let word = String(bytesNoCopy: &bytes, length: prefix.count, encoding: NSUTF8StringEncoding, freeWhenDone: false) {
+                results.append(word)
+            }
+        }
+        
+        // Check each edge of this node to see if any of the letters
+        // exist in our rack letters (or we have a '?').
+        source.edges.forEach { (letter, node) in
+            //print(letter, letters, String(letter), letters.map({ String($0) }))
+            if let index = letters.indexOf(letter) ?? letters.indexOf(blankLetter) {
+                // Copy letters, removing this letter
+                var newLetters = letters
+                newLetters.removeAtIndex(index)
+                // Add letter to prefix
+                var newPrefix = prefix
+                newPrefix.append(letter)
+                // Recurse with new prefix/letters
+                recursiveAnagrams(withLetters: newLetters,
+                    wordLength: wordLength, prefix: newPrefix,
+                    filled: filled, filledCount: filledCount,
+                    source: node, blankLetter: blankLetter,
+                    results: &results)
+            }
+        }
+    }
+    
+    /// Calculates all possible words given a set of rack letters
+    /// optionally providing fixed letters which can be used
+    /// to indicate that these positions are already filled.
+    /// - parameters:
+    ///     - letters: Letter in rack to use.
+    ///     - wordLength: Length of word to return.
+    ///     - filledLetters: (Optional) Letters that are already filled at given positions.
+    ///     - blankLetter: (Optional) Letter to use instead of ?.
+    /// - returns: Array of possible words.
+    public func anagrams(
+        withLetters letters: [Character],
+        wordLength: Int,
+        filledLetters: [Int: Character] = [Int: Character](),
+        blankLetter: Character = "?") -> [String]
+    {
+        var filled = [Int: DawgLetter]()
+        for (key, value) in filledLetters {
+            filled[key] = String(value).utf8.first!
+        }
+        var results = [String]()
+        recursiveAnagrams(withLetters: letters.map({ String($0).utf8.first! }),
+            wordLength: wordLength, prefix: [DawgLetter](), filled: filled,
+            filledCount: filled.count, source: rootNode,
+            blankLetter: String(blankLetter).utf8.first!, results: &results)
+        return results
     }
 }
