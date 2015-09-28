@@ -9,17 +9,20 @@
 import Foundation
 
 class DataBuffer {
-    let data: NSData
-    var offset: Int = 0
+    private let data: NSData
+    private var offset: Int = 0
+    /// Create a data buffer with a data.
     init(_ data: NSData) {
         self.data = data
     }
+    /// Extract a UInt8 then move offset forward by 1.
     func getUInt8() -> UInt8 {
         var value: UInt8 = 0
         data.getBytes(&value, range: NSMakeRange(offset, 1))
         offset += 1
         return value
     }
+    /// Extract a UInt32 then move offset forward by 4.
     func getUInt32() -> UInt32 {
         var value: UInt32 = 0
         data.getBytes(&value, range: NSMakeRange(offset, 4))
@@ -37,24 +40,32 @@ func == (lhs: DawgNode, rhs: DawgNode) -> Bool {
 class DawgNode: CustomStringConvertible, Hashable {
     typealias Edges = [DawgLetter: DawgNode]
     
-    static var nextId: UInt32 = 0
+    private static var nextId: UInt32 = 0
+    private var descr: String = ""
     lazy var edges = Edges()
-    var descr: String = ""
     var final: Bool = false
     var id: UInt32
     
+    /// Create a new node while building a new Dawg.
     init() {
         self.id = self.dynamicType.nextId
         self.dynamicType.nextId += 1
         updateDescription()
     }
     
+    /// Create a new node with existing data into an existing Dawg.
+    /// - parameter id: Node identifier.
+    /// - parameter final: Whether this node terminates a word.
     init(withId id: UInt32, final: Bool) {
         self.dynamicType.nextId = max(self.dynamicType.nextId, id)
         self.id = id
         self.final = final
     }
     
+    /// Deserialize data, creating node hierarchy.
+    /// - parameter data: Buffer instance that handles deserializing data.
+    /// - parameter cached: Cache used for minifying nodes.
+    /// - returns: Returns root node.
     class func deserialize(data: DataBuffer, inout cached: [UInt32: DawgNode]) -> DawgNode {
         let final = data.getUInt8() == 1
         let id = data.getUInt32()
@@ -72,6 +83,7 @@ class DawgNode: CustomStringConvertible, Hashable {
         return node
     }
     
+    /// - returns: Serialized data for storage.
     func serialize() -> NSData {
         let data = NSMutableData()
         var finalByte: UInt8 = final ? 1 : 0
@@ -330,10 +342,10 @@ public class Dawg {
     {
         var filled = [Int: DawgLetter]()
         for (key, value) in filledLetters {
-            filled[key] = String(value).utf8.first!
+            filled[key] = String(value).lowercaseString.utf8.first!
         }
         var results = [String]()
-        recursiveAnagrams(withLetters: letters.map({ String($0).utf8.first! }),
+        recursiveAnagrams(withLetters: letters.map({ String($0).lowercaseString.utf8.first! }),
             wordLength: wordLength, prefix: [DawgLetter](), filled: filled,
             filledCount: filled.count, source: rootNode,
             blankLetter: String(blankLetter).utf8.first!, results: &results)
