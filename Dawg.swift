@@ -120,7 +120,7 @@ class DawgNode: CustomStringConvertible, Hashable {
 
 public class Dawg {
     private var finalized: Bool = false
-    private let rootNode: DawgNode
+    internal let rootNode: DawgNode
     private var previousChars: [UInt8] = []
     private lazy var uncheckedNodes = [(parent: DawgNode, letter: DawgLetter, child: DawgNode)]()
     private lazy var minimizedNodes = [DawgNode: DawgNode]()
