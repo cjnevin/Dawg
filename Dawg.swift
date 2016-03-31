@@ -153,13 +153,13 @@ public class Dawg {
                 while char != newLine
                 {
                     buffer.append(char)
-                    i++
+                    i += 1
                     if i >= characters.count { break }
                     char = characters[i]
                 }
                 dawg.insert(buffer)
                 buffer.removeAll()
-                i++
+                i += 1
             } while i != characters.count
             dawg.minimize(0)
             dawg.save(outputPath)
@@ -208,7 +208,7 @@ public class Dawg {
         var commonPrefix = 0
         for i in 0..<min(chars.count, previousChars.count) {
             if chars[i] != previousChars[i] { break }
-            commonPrefix++
+            commonPrefix += 1
         }
         
         // Minimize nodes before continuing.
@@ -338,7 +338,7 @@ public class Dawg {
         withLetters letters: [Character],
         wordLength: Int,
         filledLetters: [Int: Character] = [Int: Character](),
-        blankLetter: Character = "?") -> [String]
+        blankLetter: Character = "?") -> [String]?
     {
         var filled = [Int: DawgLetter]()
         for (key, value) in filledLetters {
@@ -349,6 +349,6 @@ public class Dawg {
             wordLength: wordLength, prefix: [DawgLetter](), filled: filled,
             filledCount: filled.count, source: rootNode,
             blankLetter: String(blankLetter).utf8.first!, results: &results)
-        return results
+        return results.count > 0 ? results : nil
     }
 }
