@@ -1,4 +1,5 @@
 # Dawg
+![](https://reposs.herokuapp.com/?path=ChrisAU/Dawg)
 
 Directed acyclic word graph in Swift
 
@@ -6,7 +7,7 @@ Usage:
 ```swift
 
 // Create a dawg binary file from a word list file.
-assert(dawg.create("~/input.txt", outputPath: "~/output.bin"))
+assert(Dawg.create("~/input.txt", outputPath: "~/output.bin"))
 
 // Load a binary file into a Dawg object.
 assert(Dawg.load("~/output.bin") != nil)
