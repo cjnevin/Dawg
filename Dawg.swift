@@ -8,6 +8,14 @@
 
 import Foundation
 
+private let uint32Size = sizeof(UInt32)
+private let uint8Size = sizeof(UInt8)
+private let onUInt8 = UInt8(1)
+private let offUInt8 = UInt8(0)
+private let onText = "0"
+private let offText = "1"
+private let edgeSeparator: String = "_"
+
 class DataBuffer {
     private let data: NSData
     private var offset: Int = 0
@@ -15,26 +23,39 @@ class DataBuffer {
     init(_ data: NSData) {
         self.data = data
     }
-    /// Extract a UInt8 then move offset forward by 1.
-    func getUInt8() -> UInt8 {
-        var value: UInt8 = 0
-        data.getBytes(&value, range: NSMakeRange(offset, 1))
-        offset += 1
+    
+    /// Extract a value of requested type and shift offset forward by size.
+    private func get<T: UnsignedIntegerType>(size: Int) -> T {
+        // sizeof is too slow to be performed in bulk, which is why it is
+        // only run once at top of file.
+        var value: T = 0
+        data.getBytes(&value, range: NSMakeRange(offset, size))
+        offset += size
         return value
     }
+    
+    /// Extract a UInt8 then move offset forward by 1.
+    func getUInt8() -> UInt8 {
+        return get(uint8Size)
+    }
+    
     /// Extract a UInt32 then move offset forward by 4.
     func getUInt32() -> UInt32 {
-        var value: UInt32 = 0
-        data.getBytes(&value, range: NSMakeRange(offset, 4))
-        offset += 4
-        return value
+        return get(uint32Size)
+    }
+}
+
+private extension NSMutableData {
+    func append<T: IntegerType>(value: T, size: Int? = nil) {
+        var bytes = value
+        appendBytes(&bytes, length: size ?? sizeof(value.dynamicType))
     }
 }
 
 typealias DawgLetter = UInt8
 
 func == (lhs: DawgNode, rhs: DawgNode) -> Bool {
-    return lhs.description == rhs.description
+    return lhs.descr == rhs.descr
 }
 
 class DawgNode: CustomStringConvertible, Hashable {
@@ -62,46 +83,46 @@ class DawgNode: CustomStringConvertible, Hashable {
         self.final = final
     }
     
+    /// Helper function to create a new node and add it to cache.
+    private class func newNode(withId id: UInt32, final: Bool, inout cached: [UInt32: DawgNode]) -> DawgNode {
+        let node = DawgNode(withId: id, final: final)
+        cached[id] = node
+        return node
+    }
+    
     /// Deserialize data, creating node hierarchy.
     /// - parameter data: Buffer instance that handles deserializing data.
     /// - parameter cached: Cache used for minifying nodes.
     /// - returns: Returns root node.
     class func deserialize(data: DataBuffer, inout cached: [UInt32: DawgNode]) -> DawgNode {
-        let final = data.getUInt8() == 1
-        let id = data.getUInt32()
-        let count = data.getUInt32()
-        var node: DawgNode
-        if let cache = cached[id] {
-            node = cache
-        } else {
-            node = DawgNode(withId: id, final: final)
-            cached[id] = node
-        }
+        let (final, id, count) = (data.getUInt8(), data.getUInt32(), data.getUInt8())
+        let node = cached[id] ?? newNode(withId: id, final: final == 1, cached: &cached)
         for _ in 0..<count {
             node.edges[data.getUInt8()] = deserialize(data, cached: &cached)
         }
         return node
     }
     
-    /// - returns: Serialized data for storage.
-    func serialize() -> NSData {
-        let data = NSMutableData()
-        var finalByte: UInt8 = final ? 1 : 0
-        data.appendBytes(&finalByte, length: 1)
-        data.appendBytes(&id, length: 4)
-        var count = edges.count
-        data.appendBytes(&count, length: 4)
-        for (var letter, node) in edges {
-            data.appendBytes(&letter, length: 1)
-            data.appendData(node.serialize())
+    /// Appends to buffer with data for current node and it's edges.
+    private func serialize(inout buffer: NSMutableData) {
+        buffer.append(final ? onUInt8 : offUInt8, size: uint8Size)
+        buffer.append(id, size: uint32Size)
+        buffer.append(UInt8(edges.count), size: uint8Size)
+        for (letter, node) in edges {
+            buffer.append(letter, size: uint8Size)
+            node.serialize(&buffer)
         }
-        return data
+    }
+    
+    /// - returns: Serialized data for storage.
+    func serialized() -> NSData {
+        var buffer = NSMutableData()
+        serialize(&buffer)
+        return buffer.copy() as! NSData
     }
     
     func updateDescription() {
-        var arr = [final ? "1" : "0"]
-        arr.appendContentsOf(edges.map({ "\($0.0)_\($0.1.id)" }))
-        descr = arr.joinWithSeparator("_")
+        descr = final ? offText : onText + edgeSeparator + edges.map({ "\($0.0)\(edgeSeparator)\($0.1.id)" }).joinWithSeparator(edgeSeparator)
     }
     
     func setEdge(letter: DawgLetter, node: DawgNode) {
@@ -114,7 +135,7 @@ class DawgNode: CustomStringConvertible, Hashable {
     }
     
     var hashValue: Int {
-        return self.description.hashValue
+        return descr.hashValue
     }
 }
 
@@ -172,9 +193,7 @@ public class Dawg {
     /// Attempt to save structure to file.
     /// - parameter path: Path to write to.
     private func save(path: String) -> Bool {
-        let serialized = rootNode.serialize()
-        serialized.writeToFile(path, atomically: true)
-        return true
+        return rootNode.serialized().writeToFile(path, atomically: true)
     }
     
     /// Attempt to load structure from file.
