@@ -67,7 +67,10 @@ private struct Node: Hashable {
 
 public class Dawg {
     
-    private let indexedNodes: [Int: Node]
+    private subscript(id: Int) -> Node {
+        return sortedNodes[id]
+    }
+    
     private let sortedNodes: [Node]
     private let rootNode: Node
     
@@ -117,11 +120,6 @@ public class Dawg {
             return nil
         }
         sortedNodes = nodes
-        var hashed = [Int: Node]()
-        nodes.forEach { (node) in
-            hashed[node.id] = node
-        }
-        indexedNodes = hashed
         rootNode = first
     }
     
@@ -160,12 +158,6 @@ public class Dawg {
         for (index, node) in sortedNodes.enumerate() {
             assert(index == Int(node.id))
         }
-        
-        var hashed = [Int: Node]()
-        sortedNodes.forEach { (node) in
-            hashed[node.id] = node
-        }
-        indexedNodes = hashed
         rootNode = sortedNodes.first!
     }
     
@@ -173,7 +165,7 @@ public class Dawg {
         var node = rootNode
         for letter in word.lowercaseString.utf8 {
             guard let edgeNode = node.edges[letter] else { return false }
-            node = indexedNodes[edgeNode]!
+            node = self[edgeNode]
         }
         return node.final
     }
@@ -213,7 +205,7 @@ public class Dawg {
             recursiveAnagrams(withLetters: letters,
                               wordLength: wordLength, prefix: newPrefix,
                               filled: newFilled, filledCount: filledCount,
-                              source: indexedNodes[newSource]!, blankLetter: blankLetter,
+                              source: self[newSource], blankLetter: blankLetter,
                               results: &results)
             return
         }
@@ -245,7 +237,7 @@ public class Dawg {
                 recursiveAnagrams(withLetters: newLetters,
                     wordLength: wordLength, prefix: newPrefix,
                     filled: filled, filledCount: filledCount,
-                    source: indexedNodes[node]!, blankLetter: blankLetter,
+                    source: self[node], blankLetter: blankLetter,
                     results: &results)
             }
         }
