@@ -24,7 +24,8 @@ Dawg Usage:
 ```swift
 
 // Load a binary file into a Dawg object.
-assert(Dawg.load("~/output.bin") != nil)
+let dawg = Dawg.load("~/output.bin")
+assert(dawg != nil)
 
 // Returns false if the word is undefined
 assert(dawg.lookup("plane"))
