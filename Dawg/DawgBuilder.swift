@@ -83,7 +83,7 @@ open class DawgBuilder {
     /// Attempt to create a Dawg structure from a file.
     /// - parameter inputPath: Path to load wordlist from.
     /// - parameter outputPath: Path to write binary Dawg file to.
-    open class func create(_ inputPath: String, outputPath: String) -> Bool {
+    open class func create(from inputPath: String, to outputPath: String) -> Bool {
         do {
             let data = try String(contentsOfFile: inputPath, encoding: String.Encoding.utf8)
             let dawg = DawgBuilder()
@@ -110,7 +110,7 @@ open class DawgBuilder {
                 buffer.removeAll()
                 i += 1
             } while i < characters.count
-            dawg.minimize(0)
+            dawg.minimize(downTo: 0)
             dawg.save(outputPath)
             return true
         } catch {
@@ -127,7 +127,7 @@ open class DawgBuilder {
     /// Replace redundant nodes in uncheckedNodes with ones existing in minimizedNodes
     /// then truncate.
     /// - parameter downTo: Iterate from count to this number (truncates these items).
-    fileprivate func minimize(_ downTo: Int) {
+    fileprivate func minimize(downTo: Int) {
         for i in (downTo..<uncheckedNodes.count).reversed() {
             let (parent, letter, child) = uncheckedNodes[i]
             if let node = minimizedNodes[child] {
@@ -150,7 +150,7 @@ open class DawgBuilder {
         }
         
         // Minimize nodes before continuing.
-        minimize(commonPrefix)
+        minimize(downTo: commonPrefix)
         
         var node: DawgBuilderNode
         if uncheckedNodes.count == 0 {

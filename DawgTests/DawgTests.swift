@@ -10,7 +10,7 @@ import XCTest
 @testable import Dawg
 
 extension Dawg {
-    static let singleton = Dawg.load(Bundle(for: DawgTests.self).path(forResource: "sowpods", ofType: "bin")!)!
+    static let singleton = Dawg.load(from: Bundle(for: DawgTests.self).path(forResource: "sowpods", ofType: "bin")!)!
 }
 
 class DawgTests: XCTestCase {
@@ -34,7 +34,7 @@ class DawgTests: XCTestCase {
     
     func testSerialize() {
         let serialized = dawg.serialize()
-        let deserializedDawg = Dawg.deserialize(DataBuffer(serialized))
+        let deserializedDawg = Dawg.deserialize(data: DataBuffer(serialized))
         XCTAssertNotNil(deserializedDawg)
         XCTAssertTrue(deserializedDawg!.lookup("cat"))
     }
@@ -56,7 +56,7 @@ class DawgTests: XCTestCase {
     }
     
     func testLoadFailsForInvalidFile() {
-        XCTAssertNil(Dawg.load(""))
+        XCTAssertNil(Dawg.load(from: ""))
     }
     
     func testAnagramLookupSucceeds() {

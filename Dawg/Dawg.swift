@@ -52,11 +52,11 @@ private extension NSMutableData {
     }
 }
 
-private func == (lhs: Node, rhs: Node) -> Bool {
-    return lhs.hashValue == rhs.hashValue
-}
-
 private struct Node: Hashable {
+    static func == (lhs: Node, rhs: Node) -> Bool {
+        return lhs.hashValue == rhs.hashValue
+    }
+
     let edges: Edges
     let final: Bool
     let id: Int
@@ -93,15 +93,15 @@ open class Dawg {
     /// Attempt to load structure from file.
     /// - parameter path: Path of file to read.
     /// - returns: New Dawg with initialized rootNode or nil.
-    open class func load(_ path: String) -> Dawg? {
+    open class func load(from path: String) -> Dawg? {
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)) else { return nil }
-        return deserialize(DataBuffer(data))
+        return deserialize(data: DataBuffer(data))
     }
     
     /// Deserialize data, creating node hierarchy.
     /// - parameter data: Buffer instance that handles deserializing data.
     /// - returns: Dawg instance.
-    class func deserialize(_ data: DataBuffer) -> Dawg? {
+    class func deserialize(data: DataBuffer) -> Dawg? {
         let nodeCount = Int(data.getUInt32())
         var cached = [Node]()
         for _ in 0..<nodeCount {
@@ -126,13 +126,13 @@ open class Dawg {
     init(root: DawgBuilderNode) {
         // Build temporary structure for mapping below
         var temp = [Int: Node]()
-        func addNode(_ current: DawgBuilderNode) {
+        func addNode(_ newNode: DawgBuilderNode) {
             var leanEdges = [DawgLetter: Int]()
-            current.edges.forEach { (letter, node) in
+            newNode.edges.forEach { (letter, node) in
                 leanEdges[letter] = Int(node.id)
                 addNode(node)
             }
-            temp[Int(current.id)] = Node(edges: leanEdges, final: current.final, id: Int(current.id))
+            temp[Int(newNode.id)] = Node(edges: leanEdges, final: newNode.final, id: Int(newNode.id))
         }
         addNode(root)
         
