@@ -16,13 +16,11 @@ class DawgBuilderTests: XCTestCase {
         XCTAssertTrue(DawgBuilder.create(from: input, to: output))
         
         let data = try! NSString(contentsOfFile: input, encoding: String.Encoding.utf8.rawValue)
-        let lines = data.components(separatedBy: "\n").sorted()
+        let lines = data.components(separatedBy: "\n").sorted().filter({ $0.lengthOfBytes(using: .utf8) > 0 })
         XCTAssert(lines.count > 0)
         let reader = Dawg.load(from: output)!
         for line in lines {
-            if line.lengthOfBytes(using: .utf8) > 0 {
-                XCTAssertTrue(reader.lookup(line), "\(line) invalid")
-            }
+            XCTAssertTrue(reader.lookup(line), "\(line) invalid")
         }
     }
 }
