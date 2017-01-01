@@ -12,7 +12,7 @@ DawgBuilder Usage:
 ```swift
 
 // Create a dawg binary file from a word list file.
-assert(DawgBuilder.create("~/input.txt", outputPath: "~/output.bin"))
+assert(DawgBuilder.build(readingFrom: "~/input.txt", writingTo: "~/output.bin"))
 
 // Create a DawgBuilder object manually, note items need to be inserted alpabetically.
 let dawgBuilder = DawgBuilder()
@@ -25,7 +25,7 @@ Dawg Usage:
 ```swift
 
 // Load a binary file into a Dawg object.
-let dawg = Dawg.load("~/output.bin")
+let dawg = Dawg.load(from: "~/output.bin")
 assert(dawg != nil)
 
 // Returns false if the word is undefined
