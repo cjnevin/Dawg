@@ -64,7 +64,7 @@ class DawgBuilderNode: CustomStringConvertible, Hashable, CustomDebugStringConve
 open class DawgBuilder {
     fileprivate var finalized: Bool = false
     internal let rootNode: DawgBuilderNode
-    fileprivate var previousChars: [UInt8] = []
+    fileprivate var previousChars: [Character] = []
     fileprivate lazy var uncheckedNodes = [(parent: DawgBuilderNode, letter: DawgLetter, child: DawgBuilderNode)]()
     fileprivate lazy var minimizedNodes = [DawgBuilderNode: DawgBuilderNode]()
     
@@ -87,9 +87,9 @@ open class DawgBuilder {
         do {
             let data = try String(contentsOfFile: inputPath, encoding: String.Encoding.utf8)
             let dawg = DawgBuilder()
-            let characters = Array(data.utf8)
-            let newLine = "\n".utf8.first!
-            var buffer = [UInt8]()
+            let characters = Array(data.characters)
+            let newLine = "\n".characters.first!
+            var buffer = [Character]()
             var i = 0
             var newlineCounter = 0
             let newlines = characters.filter({$0 == newLine}).count
@@ -106,7 +106,9 @@ open class DawgBuilder {
                     print(newlineCounter, CGFloat(newlineCounter) / CGFloat(newlines) * 100, "%")
                 }
                 newlineCounter += 1
-                dawg.insert(buffer)
+                if buffer.count > 0 {
+                    dawg.insert(buffer)
+                }
                 buffer.removeAll()
                 i += 1
             } while i < characters.count
@@ -141,7 +143,7 @@ open class DawgBuilder {
     
     /// Insert a word into the graph, words must be inserted in order.
     /// - parameter chars: UInt8 array.
-    @discardableResult fileprivate func insert(_ chars: [UInt8]) -> Bool {
+    @discardableResult fileprivate func insert(_ chars: [Character]) -> Bool {
         if finalized { return false }
         var commonPrefix = 0
         for i in 0..<min(chars.count, previousChars.count) {
@@ -176,6 +178,6 @@ open class DawgBuilder {
     /// Insert a word into the graph, words must be inserted in order.
     /// - parameter word: Word to insert.
     @discardableResult open func insert(_ word: String) -> Bool {
-        return insert(Array(word.utf8))
+        return insert(Array(word.characters))
     }
 }

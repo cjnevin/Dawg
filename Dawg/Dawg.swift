@@ -10,10 +10,11 @@ import Foundation
 
 private let uint32Size = MemoryLayout<UInt32>.size
 private let uint8Size = MemoryLayout<UInt8>.size
+private let charSize = MemoryLayout<Character>.size
 private let onUInt8 = UInt8(1)
 private let offUInt8 = UInt8(0)
 
-typealias DawgLetter = UInt8
+typealias DawgLetter = Character
 private typealias Edges = [DawgLetter: Int]
 
 class DataBuffer {
@@ -33,15 +34,30 @@ class DataBuffer {
         offset += size
         return value
     }
+
+    /// Extract a value of requested type and shift offset forward by size.
+    fileprivate func get(_ size: Int) -> Character {
+        // sizeof is too slow to be performed in bulk, which is why it is
+        // only run once at top of file.
+        var value: Character = " "
+        (data as NSData).getBytes(&value, range: NSMakeRange(offset, size))
+        offset += size
+        return value
+    }
     
     /// Extract a UInt8 then move offset forward by 1.
     func getUInt8() -> UInt8 {
         return get(uint8Size)
     }
-    
+
     /// Extract a UInt32 then move offset forward by 4.
     func getUInt32() -> UInt32 {
         return get(uint32Size)
+    }
+
+    /// Extract a Character then move offset forward.
+    func getCharacter() -> Character {
+        return get(charSize)
     }
 }
 
@@ -49,6 +65,11 @@ private extension NSMutableData {
     func append<T: Integer>(_ value: T, size: Int? = nil) {
         var bytes = value
         self.append(&bytes, length: size ?? MemoryLayout<T>.size)
+    }
+
+    func append(_ value: Character, size: Int? = nil) {
+        var bytes = value
+        self.append(&bytes, length: size ?? MemoryLayout<Character>.size)
     }
 }
 
@@ -83,7 +104,7 @@ open class Dawg {
             buffer.append(current.id, size: uint32Size)
             buffer.append(UInt8(current.edges.count), size: uint8Size)
             for (letter, node) in current.edges {
-                buffer.append(letter, size: uint8Size)
+                buffer.append(letter, size: MemoryLayout<Character>.size)
                 buffer.append(UInt32(node), size: uint32Size)
             }
         }
@@ -108,7 +129,7 @@ open class Dawg {
             let (final, id, edgeCount) = (data.getUInt8(), data.getUInt32(), data.getUInt8())
             var edges = [DawgLetter: Int]()
             for _ in 0..<edgeCount {
-                edges[data.getUInt8()] = Int(data.getUInt32())
+                edges[data.getCharacter()] = Int(data.getUInt32())
             }
             cached.append(Node(edges: edges, final: final == onUInt8, id: Int(id)))
         }
@@ -163,7 +184,7 @@ open class Dawg {
     
     open func lookup(_ word: String) -> Bool {
         var node = rootNode
-        for letter in word.lowercased().utf8 {
+        for letter in word.lowercased().characters {
             guard let edgeNode = node.edges[letter] else { return false }
             node = self[edgeNode]
         }
@@ -189,7 +210,7 @@ open class Dawg {
                     filled: [Int: DawgLetter],
                     filledCount: Int,
                     source: Node,
-                    blankLetter: DawgLetter = "?".utf8.first!,
+                    blankLetter: DawgLetter = "?".characters.first!,
                     results: inout [String])
     {
         // See if position exists in filled array.
@@ -260,13 +281,13 @@ open class Dawg {
     {
         var filled = [Int: DawgLetter]()
         for (key, value) in filledLetters {
-            filled[key] = String(value).lowercased().utf8.first!
+            filled[key] = String(value).lowercased().characters.first!
         }
         var results = [String]()
-        recursiveAnagrams(withLetters: letters.map({ String($0).lowercased().utf8.first! }),
+        recursiveAnagrams(withLetters: letters.map({ String($0).lowercased().characters.first! }),
                           wordLength: wordLength, prefix: [DawgLetter](), filled: filled,
                           filledCount: filled.count, source: rootNode,
-                          blankLetter: String(blankLetter).utf8.first!, results: &results)
+                          blankLetter: String(blankLetter).characters.first!, results: &results)
         return results.count > 0 ? results : nil
     }
 }

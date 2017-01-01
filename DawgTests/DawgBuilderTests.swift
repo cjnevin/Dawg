@@ -20,7 +20,9 @@ class DawgBuilderTests: XCTestCase {
         XCTAssert(lines.count > 0)
         let reader = Dawg.load(from: output)!
         for line in lines {
-            XCTAssertTrue(reader.lookup(line), "\(line) invalid")
+            if line.lengthOfBytes(using: .utf8) > 0 {
+                XCTAssertTrue(reader.lookup(line), "\(line) invalid")
+            }
         }
     }
 }
