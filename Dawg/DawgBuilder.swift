@@ -15,16 +15,16 @@ func == (lhs: DawgBuilderNode, rhs: DawgBuilderNode) -> Bool {
 class DawgBuilderNode: CustomStringConvertible, Hashable, CustomDebugStringConvertible {
     typealias Edges = [DawgLetter: DawgBuilderNode]
 
-    private static var nextId: UInt32 = 0
-    private var descr: String = ""
+    fileprivate static var nextId: UInt32 = 0
+    fileprivate var descr: String = ""
     lazy var edges = Edges()
     var final: Bool = false
     var id: UInt32
     
     /// Create a new node while building a new Dawg.
     init() {
-        self.id = self.dynamicType.nextId
-        self.dynamicType.nextId += 1
+        self.id = type(of: self).nextId
+        type(of: self).nextId += 1
         updateDescription()
     }
     
@@ -32,18 +32,18 @@ class DawgBuilderNode: CustomStringConvertible, Hashable, CustomDebugStringConve
     /// - parameter id: Node identifier.
     /// - parameter final: Whether this node terminates a word.
     init(withId id: UInt32, final: Bool) {
-        self.dynamicType.nextId = max(self.dynamicType.nextId, id)
+        type(of: self).nextId = max(type(of: self).nextId, id)
         self.id = id
         self.final = final
     }
     
     func updateDescription() {
         var arr = [final ? "1" : "0"]
-        arr.appendContentsOf(edges.map({ "\($0.0)_\($0.1.id)" }))
-        descr = arr.joinWithSeparator("_")
+        arr.append(contentsOf: edges.map({ "\($0.0)_\($0.1.id)" }))
+        descr = arr.joined(separator: "_")
     }
     
-    func setEdge(letter: DawgLetter, node: DawgBuilderNode) {
+    func setEdge(_ letter: DawgLetter, node: DawgBuilderNode) {
         edges[letter] = node
         updateDescription()
     }
@@ -61,12 +61,12 @@ class DawgBuilderNode: CustomStringConvertible, Hashable, CustomDebugStringConve
     }
 }
 
-public class DawgBuilder {
-    private var finalized: Bool = false
+open class DawgBuilder {
+    fileprivate var finalized: Bool = false
     internal let rootNode: DawgBuilderNode
-    private var previousChars: [UInt8] = []
-    private lazy var uncheckedNodes = [(parent: DawgBuilderNode, letter: DawgLetter, child: DawgBuilderNode)]()
-    private lazy var minimizedNodes = [DawgBuilderNode: DawgBuilderNode]()
+    fileprivate var previousChars: [UInt8] = []
+    fileprivate lazy var uncheckedNodes = [(parent: DawgBuilderNode, letter: DawgLetter, child: DawgBuilderNode)]()
+    fileprivate lazy var minimizedNodes = [DawgBuilderNode: DawgBuilderNode]()
     
     /// Initialize a new instance.
     public init() {
@@ -75,7 +75,7 @@ public class DawgBuilder {
     
     /// Initialize with an existing root node, carrying over all hierarchy information.
     /// - parameter rootNode: Node to use.
-    private init(withRootNode rootNode: DawgBuilderNode) {
+    fileprivate init(withRootNode rootNode: DawgBuilderNode) {
         self.rootNode = rootNode
         finalized = true
     }
@@ -83,9 +83,9 @@ public class DawgBuilder {
     /// Attempt to create a Dawg structure from a file.
     /// - parameter inputPath: Path to load wordlist from.
     /// - parameter outputPath: Path to write binary Dawg file to.
-    public class func create(inputPath: String, outputPath: String) -> Bool {
+    open class func create(_ inputPath: String, outputPath: String) -> Bool {
         do {
-            let data = try String(contentsOfFile: inputPath, encoding: NSUTF8StringEncoding)
+            let data = try String(contentsOfFile: inputPath, encoding: String.Encoding.utf8)
             let dawg = DawgBuilder()
             let characters = Array(data.utf8)
             let newLine = "\n".utf8.first!
@@ -120,28 +120,28 @@ public class DawgBuilder {
     
     /// Attempt to save structure to file.
     /// - parameter path: Path to write to.
-    private func save(path: String) -> Bool {
-        return Dawg(root: rootNode).serialize().writeToFile(path, atomically: true)
+    @discardableResult fileprivate func save(_ path: String) -> Bool {
+        return ((try? Dawg(root: rootNode).serialize().write(to: URL(fileURLWithPath: path), options: [.atomic])) != nil)
     }
     
     /// Replace redundant nodes in uncheckedNodes with ones existing in minimizedNodes
     /// then truncate.
     /// - parameter downTo: Iterate from count to this number (truncates these items).
-    private func minimize(downTo: Int) {
-        for i in (downTo..<uncheckedNodes.count).reverse() {
+    fileprivate func minimize(_ downTo: Int) {
+        for i in (downTo..<uncheckedNodes.count).reversed() {
             let (parent, letter, child) = uncheckedNodes[i]
             if let node = minimizedNodes[child] {
                 parent.setEdge(letter, node: node)
             } else {
                 minimizedNodes[child] = child
             }
-            uncheckedNodes.popLast()
+            uncheckedNodes.removeLast()
         }
     }
     
     /// Insert a word into the graph, words must be inserted in order.
     /// - parameter chars: UInt8 array.
-    private func insert(chars: [UInt8]) -> Bool {
+    @discardableResult fileprivate func insert(_ chars: [UInt8]) -> Bool {
         if finalized { return false }
         var commonPrefix = 0
         for i in 0..<min(chars.count, previousChars.count) {
@@ -175,7 +175,7 @@ public class DawgBuilder {
     
     /// Insert a word into the graph, words must be inserted in order.
     /// - parameter word: Word to insert.
-    public func insert(word: String) -> Bool {
+    @discardableResult open func insert(_ word: String) -> Bool {
         return insert(Array(word.utf8))
     }
 }

@@ -11,12 +11,12 @@ import XCTest
 
 class DawgBuilderTests: XCTestCase {
     func testBuilder() {
-        let input = NSBundle(forClass: self.dynamicType).pathForResource("test", ofType: "txt")!
-        let output = NSSearchPathForDirectoriesInDomains(.CachesDirectory, .UserDomainMask, true).first! + "/output.txt"
+        let input = Bundle(for: type(of: self)).path(forResource: "test", ofType: "txt")!
+        let output = NSSearchPathForDirectoriesInDomains(.cachesDirectory, .userDomainMask, true).first! + "/output.txt"
         XCTAssertTrue(DawgBuilder.create(input, outputPath: output))
         
-        let data = try! NSString(contentsOfFile: input, encoding: NSUTF8StringEncoding)
-        let lines = data.componentsSeparatedByString("\n").sort()
+        let data = try! NSString(contentsOfFile: input, encoding: String.Encoding.utf8.rawValue)
+        let lines = data.components(separatedBy: "\n").sorted()
         XCTAssert(lines.count > 0)
         let reader = Dawg.load(output)!
         for line in lines {

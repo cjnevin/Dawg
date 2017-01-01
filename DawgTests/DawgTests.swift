@@ -10,7 +10,7 @@ import XCTest
 @testable import Dawg
 
 extension Dawg {
-    static let singleton = Dawg.load(NSBundle(forClass: DawgTests.self).pathForResource("sowpods", ofType: "bin")!)!
+    static let singleton = Dawg.load(Bundle(for: DawgTests.self).path(forResource: "sowpods", ofType: "bin")!)!
 }
 
 class DawgTests: XCTestCase {
@@ -28,7 +28,7 @@ class DawgTests: XCTestCase {
         super.tearDown()
     }
     
-    func chars(str: String) -> [Character] {
+    func chars(_ str: String) -> [Character] {
         return Array(str.characters)
     }
     
@@ -60,7 +60,7 @@ class DawgTests: XCTestCase {
     }
     
     func testAnagramLookupSucceeds() {
-        XCTAssertEqual(dawg.anagrams(withLetters: chars("cat"), wordLength: 3, blankLetter: blank)!.sort(), ["act", "cat"])
+        XCTAssertEqual(dawg.anagrams(withLetters: chars("cat"), wordLength: 3, blankLetter: blank)!.sorted(), ["act", "cat"])
     }
     
     func testAnagramLookupWithFilledLettersSucceeds() {
@@ -77,10 +77,10 @@ class DawgTests: XCTestCase {
         var fixedLetters = [Int: Character]()
         fixedLetters[0] = "c"
         fixedLetters[2] = "r"
-        XCTAssertEqual(dawg.anagrams(withLetters: chars("aeiou"), wordLength: 3, filledLetters: fixedLetters, blankLetter: blank)!.sort(), ["car", "cor", "cur"])
+        XCTAssertEqual(dawg.anagrams(withLetters: chars("aeiou"), wordLength: 3, filledLetters: fixedLetters, blankLetter: blank)!.sorted(), ["car", "cor", "cur"])
     }
     
     func testLookupWithWordLengthReturnsResults() {
-        XCTAssertEqual(dawg.anagrams(withLetters: chars("hair"), wordLength: 3, blankLetter: blank)!.sort(), ["ahi", "air", "rah", "rai", "ria"])
+        XCTAssertEqual(dawg.anagrams(withLetters: chars("hair"), wordLength: 3, blankLetter: blank)!.sorted(), ["ahi", "air", "rah", "rai", "ria"])
     }
 }
