@@ -237,10 +237,7 @@ open class Dawg {
             prefix.count == wordLength &&
             prefix.count > filledCount
         {
-            var bytes = prefix
-            if let word = String(bytesNoCopy: &bytes, length: prefix.count, encoding: String.Encoding.utf8, freeWhenDone: false) {
-                results.append(word)
-            }
+            results.append(String(prefix))
         }
         
         // Check each edge of this node to see if any of the letters
@@ -281,13 +278,13 @@ open class Dawg {
     {
         var filled = [Int: DawgLetter]()
         for (key, value) in filledLetters {
-            filled[key] = String(value).lowercased().characters.first!
+            filled[key] = Character(String(value).lowercased())
         }
         var results = [String]()
-        recursiveAnagrams(withLetters: letters.map({ String($0).lowercased().characters.first! }),
+        recursiveAnagrams(withLetters: letters,
                           wordLength: wordLength, prefix: [DawgLetter](), filled: filled,
                           filledCount: filled.count, source: rootNode,
-                          blankLetter: String(blankLetter).characters.first!, results: &results)
+                          blankLetter: blankLetter, results: &results)
         return results.count > 0 ? results : nil
     }
 }
