@@ -13,7 +13,7 @@ class DawgBuilderTests: XCTestCase {
     func testBuilder() {
         let input = Bundle(for: type(of: self)).path(forResource: "test", ofType: "txt")!
         let output = NSSearchPathForDirectoriesInDomains(.cachesDirectory, .userDomainMask, true).first! + "/output.txt"
-        XCTAssertTrue(DawgBuilder.create(from: input, to: output))
+        XCTAssertTrue(DawgBuilder.build(readingFrom: input, writingTo: output))
         
         let data = try! NSString(contentsOfFile: input, encoding: String.Encoding.utf8.rawValue)
         let lines = data.components(separatedBy: "\n").sorted().filter({ $0.lengthOfBytes(using: .utf8) > 0 })

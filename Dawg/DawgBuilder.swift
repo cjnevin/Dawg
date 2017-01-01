@@ -83,7 +83,7 @@ open class DawgBuilder {
     /// Attempt to create a Dawg structure from a file.
     /// - parameter inputPath: Path to load wordlist from.
     /// - parameter outputPath: Path to write binary Dawg file to.
-    open class func create(from inputPath: String, to outputPath: String) -> Bool {
+    open class func build(readingFrom inputPath: String, writingTo outputPath: String) -> Bool {
         do {
             let data = try String(contentsOfFile: inputPath, encoding: String.Encoding.utf8)
             let dawg = DawgBuilder()
