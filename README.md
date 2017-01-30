@@ -21,6 +21,17 @@ dawgBuilder.insert("plane")
 
 ```
 
+The above can be achieved using a _macOS Command Line Tool_ project following these steps:
+
+```
+1. File -> New Project -> macOS -> Command Line Tool
+2. Paste the line above.
+3. Put your file in ~ and call it 'input.txt'
+4. Press ⌘R
+5. Wait until it completes...
+6. Copy 'output.txt' from ~ directory into your project
+```
+
 Dawg Usage:
 ```swift
 
